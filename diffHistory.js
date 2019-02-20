@@ -1,5 +1,5 @@
 const omit = require('omit-deep');
-const pick = require('lodash.pick');
+const pick = require('pick-deep');
 const mongoose = require('mongoose');
 
 // try to find an id property, otherwise just use the index in the array
@@ -8,9 +8,7 @@ const diffPatcher = require('jsondiffpatch').create({ objectHash });
 
 const History = require('./diffHistoryModel').model;
 
-const isValidCb = cb => {
-    return cb && typeof cb === 'function';
-};
+const isValidCb = cb => cb && typeof cb === 'function';
 
 const saveDiffObject = (currentObject, original, updated, opts, metaData) => {
     const { __user: user, __reason: reason } = metaData || currentObject;
@@ -20,9 +18,9 @@ const saveDiffObject = (currentObject, original, updated, opts, metaData) => {
         JSON.parse(JSON.stringify(updated))
     );
 
-    if (opts.omit) {
-        omit(diff, opts.omit);
-    }
+    if (opts.ignore) omit(diff, opts.ignore);
+
+    if (opts.only) pick(diff, opts.only);
 
     if (!diff || !Object.keys(diff).length) return;
 
@@ -45,11 +43,11 @@ const saveDiffObject = (currentObject, original, updated, opts, metaData) => {
 };
 
 const saveDiffHistory = (queryObject, currentObject, opts) => {
+    if (opts.if && !opts.if(currentObject, queryObject._update)) return;
     const updateParams = { ...queryObject._update['$set'], ...queryObject._update };
     delete updateParams.$set;
     delete updateParams.$setOnInsert;
     const dbObject = pick(currentObject, Object.keys(updateParams));
-
     return saveDiffObject(currentObject, dbObject, updateParams, opts, queryObject.options);
 };
 
@@ -162,7 +160,7 @@ const getHistories = (modelName, id, expandableFields, cb) => {
  * @param {Object} schema - Schema object passed by Mongoose Schema.plugin
  * @param {Object} [opts] - Options passed by Mongoose Schema.plugin
  * @param {string} [opts.uri] - URI for MongoDB (necessary, for instance, when not using mongoose.connect).
- * @param {string|string[]} [opts.omit] - fields to omit from diffs (ex. ['a', 'b.c.d']).
+ * @param {string|string[]} [opts.ignore] - fields to omit from diffs (ex. ['a', 'b.c.d']).
  */
 const plugin = function lastModifiedPlugin(schema, opts = {}) {
     if (opts.uri) {
@@ -171,13 +169,30 @@ const plugin = function lastModifiedPlugin(schema, opts = {}) {
         });
     }
 
-    if (opts.omit && !Array.isArray(opts.omit)) {
-        if (typeof opts.omit === 'string') {
-            opts.omit = [opts.omit];
+    if (opts.ignore && !Array.isArray(opts.ignore)) {
+        if (typeof opts.ignore === 'string') {
+            opts.ignore = [opts.ignore];
         } else {
-            const errMsg = `opts.omit expects string or array, instead got '${typeof opts.omit}'`;
+            const errMsg = `opts.ignore expects string or array, instead got '${typeof opts.ignore}'`;
             throw new TypeError(errMsg);
         }
+    }
+
+    if (opts.only && !Array.isArray(opts.only)) {
+        if (typeof opts.only === 'string') {
+            opts.only = [opts.only];
+        } else {
+            const errMsg = `opts.only expects string or array, instead got '${typeof opts.only}'`;
+            throw new TypeError(errMsg);
+        }
+    }
+
+    if (opts.ignore && opts.only) {
+        throw new TypeError(`diffHistory: options expects 'only' OR 'ignore', not both`);
+    }
+
+    if (opts.if && typeof opts.if !== 'function') {
+        throw new TypeError(`diffHistory: option expects 'if' to ba a function. Got ${typeof opts.if}`);
     }
 
     schema.pre('save', function (next) {
