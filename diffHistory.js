@@ -46,6 +46,8 @@ const saveDiffObject = (currentObject, original, updated, opts, metaData) => {
 
 const saveDiffHistory = (queryObject, currentObject, opts) => {
     const updateParams = { ...queryObject._update['$set'], ...queryObject._update };
+    delete updateParams.$set;
+    delete updateParams.$setOnInsert;
     const dbObject = pick(currentObject, Object.keys(updateParams));
 
     return saveDiffObject(currentObject, dbObject, updateParams, opts, queryObject.options);
