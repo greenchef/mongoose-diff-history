@@ -1,10 +1,27 @@
 const omit = require('omit-deep');
-const pick = require('pick-deep');
+const merge = require('merge-deep');
 const mongoose = require('mongoose');
+
+const constructNested = (original, keys = []) => {
+    if (!keys.length) return original;
+    const [firstKey, ...otherKeys] = keys;
+    const nextVal = original[firstKey];
+    if (nextVal == null) return null;
+    return { [firstKey]: Array.isArray(nextVal)
+        ? nextVal.map(subObj => constructNested(subObj, otherKeys)).filter(v => v != null)
+        : constructNested(nextVal, otherKeys) }
+}
+
+
+const pickDeep = (object, paths) => {
+    const parsedPaths = paths.map(path => (path.includes('.') ? path.split('.') : path));
+    const mergeable = parsedPaths.map(path => constructNested(object, path));
+    return mergeable.reduce((acc, obj) => merge(acc, obj), {});
+}
 
 // try to find an id property, otherwise just use the index in the array
 const objectHash = (obj, idx) => obj._id || obj.id || `$$index: ${idx}`;
-const diffPatcher = require('jsondiffpatch').create({ objectHash });
+const diffPatcher = require('jsondiffpatch').create({ arrays: { detectMove: false }, objectHash });
 
 const History = require('./diffHistoryModel').model;
 
@@ -13,14 +30,14 @@ const isValidCb = cb => cb && typeof cb === 'function';
 const saveDiffObject = (currentObject, original, updated, opts, metaData) => {
     const { __user: user, __reason: reason } = metaData || currentObject;
 
-    const diff = diffPatcher.diff(
+    let diff = diffPatcher.diff(
         JSON.parse(JSON.stringify(original)),
         JSON.parse(JSON.stringify(updated))
     );
 
-    if (opts.ignore) omit(diff, opts.ignore);
+    if (opts.ignore) diff = omit(diff, opts.ignore);
 
-    if (opts.only) pick(diff, opts.only);
+    if (opts.only) diff = pickDeep(diff, opts.only);
 
     if (!diff || !Object.keys(diff).length) return;
 
@@ -47,7 +64,7 @@ const saveDiffHistory = (queryObject, currentObject, opts) => {
     const updateParams = { ...queryObject._update['$set'], ...queryObject._update };
     delete updateParams.$set;
     delete updateParams.$setOnInsert;
-    const dbObject = pick(currentObject, Object.keys(updateParams));
+    const dbObject = pickDeep(currentObject, Object.keys(updateParams));
     return saveDiffObject(currentObject, dbObject, updateParams, opts, queryObject.options);
 };
 

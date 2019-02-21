@@ -11,17 +11,16 @@
     "url": "https://github.com/mimani/mongoose-diff-history"
   },
   "dependencies": {
-    "jsondiffpatch": "^0.1.38",
-    "lodash.pick": "^4.4.0",
-    "omit-deep": "^0.3.0",
-    "pick-deep": "^1.0.0"
+    "jsondiffpatch": "0.3.11",
+    "merge-deep": "3.0.2",
+    "omit-deep": "0.3.0"
   },
   "devDependencies": {
-    "bluebird": "^3.5.1",
-    "chai": "^3.5.0",
-    "istanbul": "^0.4.5",
-    "mocha": "^2.5.3",
-    "mongoose": "^4.13.9"
+    "bluebird": "3.5.1",
+    "chai": "3.5.0",
+    "istanbul": "0.4.5",
+    "mocha": "2.5.3",
+    "mongoose": "4.13.9"
   },
   "scripts": {
     "test": "istanbul cover --report lcov  _mocha tests --recursive"
