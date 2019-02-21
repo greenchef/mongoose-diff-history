@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "jsondiffpatch": "0.3.11",
+    "lodash.pick": "^4.4.0",
     "merge-deep": "3.0.2",
     "omit-deep": "0.3.0"
   },

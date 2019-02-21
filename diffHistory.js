@@ -1,6 +1,7 @@
 const omit = require('omit-deep');
 const merge = require('merge-deep');
 const mongoose = require('mongoose');
+const pick = require('lodash.pick');
 
 const constructNested = (original, keys = []) => {
     if (!keys.length) return original;
@@ -64,7 +65,7 @@ const saveDiffHistory = (queryObject, currentObject, opts) => {
     const updateParams = { ...queryObject._update['$set'], ...queryObject._update };
     delete updateParams.$set;
     delete updateParams.$setOnInsert;
-    const dbObject = pickDeep(currentObject, Object.keys(updateParams));
+    const dbObject = pick(currentObject, Object.keys(updateParams));
     return saveDiffObject(currentObject, dbObject, updateParams, opts, queryObject.options);
 };
 
